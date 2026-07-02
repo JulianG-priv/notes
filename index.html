@@ -36,12 +36,16 @@
     }
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
-  html, body { height: 100%; }
+  html, body { height: 100%; overscroll-behavior: none; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background: var(--bg);
     color: var(--text);
-    overscroll-behavior-y: none;
+    touch-action: manipulation;
+  }
+  /* UI chrome should not be text-selectable (kills the "web page" feel on long-press) */
+  header, .editor-bar, #fmt-bar, #tags, .note-card, #fab, #menu, #sortdone-btn, #toast, .section-label {
+    user-select: none; -webkit-user-select: none;
   }
   .screen {
     position: fixed; inset: 0;
@@ -753,7 +757,7 @@ function openNote(id) {
   $('pin-btn').classList.toggle('pinned', !!n.pinned);
   setMode(n.body.trim() ? 'view' : 'edit');
   $('editor-screen').classList.add('open');
-  history.pushState({ note: id }, '');
+  history.pushState({ depth: 2, note: id }, '');
 }
 
 function newNote() {
@@ -981,12 +985,34 @@ $('import-file').onchange = e => {
   e.target.value = '';
 };
 
-// Android back button / iOS swipe-back closes the editor
-window.addEventListener('popstate', () => closeEditor(true));
+// Android back button / iOS swipe-back, layered like a native app:
+// editor -> home -> (leave trash / clear search) -> stay put instead of exiting to a dead page
+let exitHintShown = false;
+window.addEventListener('popstate', e => {
+  const depth = e.state && typeof e.state.depth === 'number' ? e.state.depth : 0;
+  if (depth >= 1) { closeEditor(true); return; }
+  // landed on the exit-guard entry: back was pressed on the home screen
+  closeEditor(true);
+  if (trashMode) {
+    setTrash(false);
+  } else if (activeTag || $('search').value) {
+    activeTag = null;
+    $('search').value = '';
+    render();
+  } else if (!exitHintShown) {
+    exitHintShown = true;
+    showToast('Use the home button to leave the app');
+  }
+  history.pushState({ depth: 1 }, '');
+});
 // Save when app is backgrounded
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'hidden') flushSave();
 });
+
+// history layers: 0 = exit guard, 1 = home, 2 = editor
+history.replaceState({ depth: 0 }, '');
+history.pushState({ depth: 1 }, '');
 
 // Web Share Target: Android "Share → Notes" opens index.html?title=…&text=…&url=…
 {
@@ -994,7 +1020,7 @@ document.addEventListener('visibilitychange', () => {
   if (q.has('title') || q.has('text') || q.has('url')) {
     const title = (q.get('title') || '').trim();
     const body = [q.get('text') || '', q.get('url') || ''].filter(Boolean).join('\n').trim();
-    history.replaceState(null, '', location.pathname);
+    history.replaceState({ depth: 1 }, '', location.pathname);
     if (title || body) {
       const n = {
         id: Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
