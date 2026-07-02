@@ -243,6 +243,10 @@
     padding: 13px 18px; font-size: 15px; text-align: left; cursor: pointer;
   }
   #menu button:active { background: var(--accent-soft); }
+  #app-ver {
+    padding: 8px 18px 10px; font-size: 12px; color: var(--text-dim);
+    border-top: 1px solid var(--border); text-align: center;
+  }
   #toast {
     position: fixed; left: 50%; transform: translateX(-50%) translateY(20px);
     bottom: calc(100px + env(safe-area-inset-bottom));
@@ -304,6 +308,7 @@
   <button id="export-btn">Export backup</button>
   <button id="import-btn">Import backup</button>
   <button id="empty-trash-btn" hidden>Empty trash</button>
+  <div id="app-ver"></div>
 </div>
 <input type="file" id="import-file" accept="application/json" hidden>
 
@@ -312,6 +317,8 @@
 <script>
 const $ = id => document.getElementById(id);
 const KEY = 'notes.v1';
+const APP_VER = 'v6';
+document.getElementById('app-ver').textContent = 'Notes ' + APP_VER;
 
 const PURGE_MS = 30 * 24 * 3600 * 1000; // trash keeps notes for 30 days
 
